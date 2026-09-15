@@ -6,6 +6,54 @@ export interface RawParsedFile {
   rows: Record<string, string>[];
 }
 
+/**
+ * Google Ads' own "download report" export (the one a real PPC person
+ * actually has on hand) prepends a title line and a date-range line before
+ * the real header, and appends "Total: ..." summary rows at the end. Rather
+ * than special-case that exact shape, find the header generically: it's the
+ * first row whose column count matches the most common column count in the
+ * file (title/date preamble lines are short one-cell rows that lose that vote).
+ */
+function detectHeaderRow(rows: string[][]): { header: string[]; dataRows: string[][] } {
+  if (rows.length === 0) {
+    throw new Error("File has no rows.");
+  }
+
+  const counts = new Map<number, number>();
+  for (const r of rows) {
+    if (r.length <= 1) continue;
+    counts.set(r.length, (counts.get(r.length) ?? 0) + 1);
+  }
+
+  let modeLen = 0;
+  let modeCount = 0;
+  for (const [len, count] of counts) {
+    if (count > modeCount) {
+      modeLen = len;
+      modeCount = count;
+    }
+  }
+
+  if (modeLen === 0) {
+    return { header: rows[0].map((h) => h.trim()), dataRows: rows.slice(1) };
+  }
+
+  const headerIdx = rows.findIndex((r) => r.length === modeLen);
+  const header = rows[headerIdx].map((h) => h.trim());
+  const dataRows = rows.slice(headerIdx + 1).filter((r) => r.length === modeLen);
+  return { header, dataRows };
+}
+
+function toObjectRows(header: string[], dataRows: string[][]): Record<string, string>[] {
+  return dataRows.map((r) => {
+    const obj: Record<string, string> = {};
+    header.forEach((h, i) => {
+      obj[h] = r[i] ?? "";
+    });
+    return obj;
+  });
+}
+
 export async function parseUploadedFile(file: File): Promise<RawParsedFile> {
   const name = file.name.toLowerCase();
 
@@ -14,15 +62,15 @@ export async function parseUploadedFile(file: File): Promise<RawParsedFile> {
     if (!text.trim()) {
       throw new Error("That CSV file is empty.");
     }
-    const result = Papa.parse<Record<string, string>>(text, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h) => h.trim(),
-    });
-    if (result.errors.some((e) => e.type === "Delimiter")) {
-      throw new Error("Couldn't detect a delimiter — is this really a CSV file?");
-    }
-    return { columns: result.meta.fields ?? [], rows: result.data };
+    // Delimiter is forced to "," rather than auto-detected: Papa's heuristic
+    // samples early lines to guess the delimiter, and a "|"-separated campaign
+    // naming convention (extremely common in real Google Ads accounts, e.g.
+    // "Brand | Search | US") can out-vote the real comma delimiter, especially
+    // when — as in Google Ads' own report export — the first couple of lines
+    // are a title/date-range line with no commas at all to vote with.
+    const result = Papa.parse<string[]>(text, { skipEmptyLines: true, delimiter: "," });
+    const { header, dataRows } = detectHeaderRow(result.data);
+    return { columns: header, rows: toObjectRows(header, dataRows) };
   }
 
   if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
@@ -41,12 +89,13 @@ export async function parseUploadedFile(file: File): Promise<RawParsedFile> {
       throw new Error("That spreadsheet has no sheets.");
     }
     const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
+    const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, {
+      header: 1,
       defval: "",
       raw: false,
     });
-    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-    return { columns, rows };
+    const { header, dataRows } = detectHeaderRow(rawRows.map((r) => r.map((c) => String(c))));
+    return { columns: header, rows: toObjectRows(header, dataRows) };
   }
 
   throw new Error("Unsupported file type — upload a .csv or .xlsx file.");

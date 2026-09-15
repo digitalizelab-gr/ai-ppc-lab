@@ -9,6 +9,13 @@ export const DATASETS: Dataset[] = [
     mockRowRange: [800, 14000],
   },
   {
+    id: "peer-search-terms",
+    label: "Peer Accounts (Search Terms)",
+    emoji: "🐾",
+    description: "Search terms reports from other, similar accounts — upload as many as you've got.",
+    mockRowRange: [800, 14000],
+  },
+  {
     id: "product-performance",
     label: "Product Performance",
     emoji: "📦",

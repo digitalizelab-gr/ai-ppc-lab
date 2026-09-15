@@ -6,6 +6,7 @@ import { DatasetId } from "@/lib/types";
 import { useLab } from "@/lib/store";
 import { DATASET_MAP } from "@/lib/datasets";
 import { robotsCompatibleWith } from "@/lib/robots";
+import { MULTI_FILE_DATASET_TYPES } from "@/lib/liveAgents";
 
 export default function DatasetUploadButton({
   datasetId,
@@ -22,12 +23,13 @@ export default function DatasetUploadButton({
   const entry = pantry[datasetId];
   const dataset = DATASET_MAP[datasetId];
   const compatibleRobots = robotsCompatibleWith(datasetId);
+  const multiple = MULTI_FILE_DATASET_TYPES.has(datasetId);
 
-  async function handleFile(file: File) {
+  async function handleFiles(files: File[]) {
     setBusy(true);
     setError(null);
     try {
-      await uploadDataset(datasetId, file);
+      await uploadDataset(datasetId, files);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed.");
     } finally {
@@ -49,8 +51,17 @@ export default function DatasetUploadButton({
           <span className="font-mono text-[10px] font-semibold text-good">FED</span>
         </div>
         <span className="font-mono text-[10px] text-text-faint">
-          {entry.filename} · {entry.rows.toLocaleString()} rows
+          {entry.sourceFiles && entry.sourceFiles.length > 1
+            ? `${entry.sourceFiles.length} accounts merged`
+            : entry.filename}{" "}
+          · {entry.rows.toLocaleString()} rows
+          {entry.currencyCode && ` · ${entry.currencyCode}`}
         </span>
+        {entry.sourceFiles && entry.sourceFiles.length > 1 && (
+          <span className="font-mono text-[9px] leading-snug text-text-faint">
+            {entry.sourceFiles.join(", ")}
+          </span>
+        )}
 
         {compatibleRobots.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -92,7 +103,9 @@ export default function DatasetUploadButton({
             UPLOADING…
           </span>
         ) : (
-          <span className="font-mono text-[10px] text-text-faint">+ UPLOAD CSV/XLSX</span>
+          <span className="font-mono text-[10px] text-text-faint">
+            {multiple ? "+ UPLOAD ONE OR MORE" : "+ UPLOAD CSV/XLSX"}
+          </span>
         )}
       </button>
       {error && (
@@ -105,10 +118,11 @@ export default function DatasetUploadButton({
         ref={inputRef}
         type="file"
         accept=".csv,.xlsx,.xls"
+        multiple={multiple}
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length > 0) handleFiles(files);
           e.target.value = "";
         }}
       />

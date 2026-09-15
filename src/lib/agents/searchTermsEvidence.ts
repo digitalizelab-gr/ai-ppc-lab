@@ -1,23 +1,8 @@
 import { SearchTermRow } from "@/lib/parsing/searchTermsSchema";
-
-const STOPWORDS = new Set([
-  "the", "a", "an", "and", "or", "for", "to", "of", "in", "on", "with",
-  "near", "me", "best", "top", "how", "what", "is", "are", "vs", "your",
-  "you", "can", "will", "does", "do", "at", "by", "from", "this", "that",
-]);
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function tokenize(term: string): string[] {
-  return term
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length > 2 && !STOPWORDS.has(t) && Number.isNaN(Number(t)));
-}
+import { tokenize, round2 } from "./textTokenize";
 
 export interface SearchTermEvidence {
+  currencyCode: string;
   rowCount: number;
   totals: { impressions: number; clicks: number; cost: number; conversions: number };
   accountAverages: { ctrPct: number | null; conversionRatePct: number | null; cpa: number | null };
@@ -32,7 +17,10 @@ export interface SearchTermEvidence {
  * (the full Search Term Goblin analysis and the /ai-test quick test). All
  * math happens here in plain code — Gemini only ever sees the output.
  */
-export function buildSearchTermEvidence(rows: SearchTermRow[]): SearchTermEvidence {
+export function buildSearchTermEvidence(
+  rows: SearchTermRow[],
+  currencyCode = "USD"
+): SearchTermEvidence {
   let impressions = 0;
   let clicks = 0;
   let cost = 0;
@@ -78,6 +66,7 @@ export function buildSearchTermEvidence(rows: SearchTermRow[]): SearchTermEviden
     .map(([token, v]) => ({ token, cost: round2(v.cost), termOccurrences: v.termOccurrences }));
 
   return {
+    currencyCode,
     rowCount: rows.length,
     totals: { impressions, clicks, cost: round2(cost), conversions: round2(conversions) },
     accountAverages: {

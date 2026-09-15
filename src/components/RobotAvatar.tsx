@@ -222,6 +222,14 @@ function Accessory({ robotId, color }: { robotId: string; color: string }) {
           <line x1="60" y1="85" x2="60" y2="97" stroke={color} strokeWidth="1.2" />
         </>
       );
+    case "bloodhound":
+      return (
+        <>
+          <path d="M30 32 Q10 48 22 66 Q28 70 32 62 Z" fill="#1a1d22" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+          <path d="M90 32 Q110 48 98 66 Q92 70 88 62 Z" fill="#1a1d22" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+          <ellipse cx="60" cy="63" rx="6" ry="4" fill={color} opacity="0.85" />
+        </>
+      );
     default:
       return null;
   }

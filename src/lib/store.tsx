@@ -54,7 +54,7 @@ interface LabContextValue {
   feedback: FeedbackMap;
   analysingRobotId: string | null;
   feedDataset: (id: DatasetId) => void;
-  uploadDataset: (id: DatasetId, file: File) => Promise<void>;
+  uploadDataset: (id: DatasetId, files: File[]) => Promise<void>;
   robotStatus: (robot: Robot) => RobotState;
   runAnalysis: (robotId: string) => void;
   giveFeedback: (resultKey: string, value: FeedbackValue) => void;
@@ -99,9 +99,9 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const uploadDataset = useCallback(async (id: DatasetId, file: File) => {
+  const uploadDataset = useCallback(async (id: DatasetId, files: File[]) => {
     const form = new FormData();
-    form.append("file", file);
+    for (const file of files) form.append("file", file);
     form.append("datasetType", id);
 
     const res = await fetch("/api/datasets/upload", { method: "POST", body: form });
@@ -121,6 +121,8 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
           source: "upload",
           serverDatasetId: data.id,
           filename: data.filename,
+          sourceFiles: data.sourceFiles,
+          currencyCode: data.currencyCode,
           columns: data.columns,
           validation: data.validation,
         },
@@ -145,7 +147,9 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
       if (analysingRobotId === robot.id) return "analysing";
       const run = runs[robot.id];
       if (run) return run.status;
-      const hasFood = robot.food.some((f) => pantry[f]);
+      const hasFood = robot.requiresAllFood
+        ? robot.food.every((f) => pantry[f])
+        : robot.food.some((f) => pantry[f]);
       return hasFood ? "ready" : "hungry";
     },
     [pantry, runs, analysingRobotId]
@@ -160,16 +164,20 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
       if (LIVE_AGENT_IDS.has(robotId)) {
         (async () => {
           try {
-            const datasetEntry = robot.food
-              .map((f) => pantry[f])
-              .find((entry) => entry?.source === "upload" && entry.serverDatasetId);
-            if (!datasetEntry?.serverDatasetId) {
-              throw new Error("No uploaded dataset found — feed this robot a real file first.");
+            const datasetIds: Record<string, string> = {};
+            for (const foodType of robot.food) {
+              const entry = pantry[foodType];
+              if (entry?.source === "upload" && entry.serverDatasetId) {
+                datasetIds[foodType] = entry.serverDatasetId;
+              }
+            }
+            if (Object.keys(datasetIds).length === 0) {
+              throw new Error("No uploaded dataset found — feed this robot real files first.");
             }
             const res = await fetch(`/api/analyze/${robotId}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ datasetId: datasetEntry.serverDatasetId }),
+              body: JSON.stringify({ datasetIds }),
             });
             const data = await res.json();
             if (!res.ok) {

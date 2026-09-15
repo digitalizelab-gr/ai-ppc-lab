@@ -5,6 +5,10 @@ export interface StoredDataset {
   id: string;
   datasetType: DatasetId;
   filename: string;
+  /** Set when multiple files were merged into one dataset (e.g. several peer accounts). */
+  sourceFiles?: string[];
+  /** e.g. "GBP" — extracted from a Currency code column when the source report has one. */
+  currencyCode?: string;
   uploadedAt: number;
   rowCount: number;
   columns: string[];
@@ -22,6 +26,8 @@ const store = new Map<string, StoredDataset>();
 export function registerDataset(input: {
   datasetType: DatasetId;
   filename: string;
+  sourceFiles?: string[];
+  currencyCode?: string;
   columns: string[];
   rows: Record<string, unknown>[];
   validation: DatasetValidation;

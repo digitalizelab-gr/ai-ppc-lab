@@ -49,7 +49,7 @@ export default function LabHome() {
         <div className="mb-4 flex items-baseline justify-between">
           <h2 className="font-display text-lg font-bold">The Collective</h2>
           <span className="font-mono text-[11px] text-text-faint">
-            6 robots, 1 still in pieces
+            {ROBOTS.length} robots, 1 still in pieces
           </span>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

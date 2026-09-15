@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { rows, validation } = validateAndNormalizeSearchTerms(parsed.columns, parsed.rows);
+  const { rows, validation, currencyCode } = validateAndNormalizeSearchTerms(parsed.columns, parsed.rows);
   if (validation.state === "invalid") {
     return NextResponse.json(
       { message: validation.issues[0] ?? "File failed validation.", issues: validation.issues },
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const evidence = buildSearchTermEvidence(rows);
+  const evidence = buildSearchTermEvidence(rows, currencyCode);
 
   try {
     const result = await generateStructuredOutput({

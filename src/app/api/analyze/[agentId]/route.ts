@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getDataset } from "@/lib/server/datasetStore";
+import { getDataset, StoredDataset } from "@/lib/server/datasetStore";
 import { getAgent } from "@/lib/agents/registry";
 import { generateAnalysis, AIProviderError } from "@/lib/ai";
+import { DatasetId } from "@/lib/types";
 
 function statusForErrorCode(code: string): number {
   switch (code) {
@@ -31,31 +32,42 @@ export async function POST(
     );
   }
 
-  let body: { datasetId?: string };
+  let body: { datasetIds?: Record<string, string> };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
   }
-  if (!body.datasetId) {
-    return NextResponse.json({ message: "Missing datasetId." }, { status: 400 });
+  if (!body.datasetIds) {
+    return NextResponse.json({ message: "Missing datasetIds." }, { status: 400 });
   }
 
-  const dataset = getDataset(body.datasetId);
-  if (!dataset) {
-    return NextResponse.json(
-      { message: "That dataset is no longer available — upload it again." },
-      { status: 404 }
-    );
-  }
-  if (dataset.datasetType !== agent.requiredDatasetType) {
-    return NextResponse.json({ message: "Wrong dataset type for this robot." }, { status: 400 });
-  }
-  if (dataset.validation.state === "invalid") {
-    return NextResponse.json({ message: "That dataset failed validation — re-upload a valid file." }, { status: 400 });
+  const datasets: Partial<Record<DatasetId, StoredDataset>> = {};
+  for (const type of agent.requiredDatasetTypes) {
+    const id = body.datasetIds[type];
+    if (!id) {
+      return NextResponse.json({ message: `Missing dataset for "${type}".` }, { status: 400 });
+    }
+    const dataset = getDataset(id);
+    if (!dataset) {
+      return NextResponse.json(
+        { message: `The "${type}" dataset is no longer available — upload it again.` },
+        { status: 404 }
+      );
+    }
+    if (dataset.datasetType !== type) {
+      return NextResponse.json({ message: `Wrong dataset type supplied for "${type}".` }, { status: 400 });
+    }
+    if (dataset.validation.state === "invalid") {
+      return NextResponse.json(
+        { message: `The "${type}" dataset failed validation — re-upload a valid file.` },
+        { status: 400 }
+      );
+    }
+    datasets[type] = dataset;
   }
 
-  const evidence = agent.preprocess(dataset);
+  const evidence = agent.preprocess(datasets);
 
   try {
     const result = await generateAnalysis({

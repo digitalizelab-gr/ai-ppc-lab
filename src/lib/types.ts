@@ -1,5 +1,6 @@
 export type DatasetId =
   | "search-terms"
+  | "peer-search-terms"
   | "product-performance"
   | "feed-export"
   | "asset-performance"
@@ -47,6 +48,8 @@ export interface Robot {
   color: string;
   colorSoft: string;
   food: DatasetId[];
+  /** Default false: "ready" as soon as ANY food is present (flavor-level readiness). True: every food type is a hard requirement before it can actually run (live agents with more than one required dataset). */
+  requiresAllFood?: boolean;
   futureFood?: string[];
   mottos: string[];
   stateMessages: Record<RobotState, string[]>;
@@ -68,6 +71,8 @@ export interface PantryEntry {
   source: "mock" | "upload";
   serverDatasetId?: string;
   filename?: string;
+  sourceFiles?: string[];
+  currencyCode?: string;
   columns?: string[];
   validation?: DatasetValidation;
 }

@@ -3,8 +3,10 @@ import { SearchTermEvidence } from "./searchTermsEvidence";
 
 export const QUICK_TEST_SYSTEM_INSTRUCTION = `You are a Google/Microsoft Ads search-term analyst running a quick diagnostic pass. You receive pre-aggregated, deterministic evidence computed from a real search terms report — never invent search terms, numbers, or statistics not present in the evidence.
 
+All monetary values in the evidence are in the currency given by evidence.currencyCode — use that currency's symbol or code, never default to "$" unless currencyCode is USD.
+
 Return exactly four short, prioritized lists:
-- wastedSpendOpportunities: specific search terms or patterns burning budget with no return, with the dollar amount.
+- wastedSpendOpportunities: specific search terms or patterns burning budget with no return, with the amount in the correct currency.
 - negativeKeywordSuggestions: exact negative keywords to add, grounded in the wasted spend evidence.
 - themesDetected: recurring intent themes visible in the evidence (converting or not).
 - quickWins: the highest-leverage, lowest-effort actions to take this week.

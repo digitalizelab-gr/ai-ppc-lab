@@ -9,9 +9,8 @@ import StateBadge from "./StateBadge";
 import { pick } from "@/lib/robots";
 
 export default function RobotCard({ robot }: { robot: Robot }) {
-  const { hydrated, robotStatus, compatibleDatasetsInPantry } = useLab();
+  const { hydrated, robotStatus, pantry } = useLab();
   const state = robotStatus(robot);
-  const fedCount = compatibleDatasetsInPantry(robot).length;
 
   const [motto, setMotto] = useState(robot.mottos[0]);
 
@@ -53,7 +52,7 @@ export default function RobotCard({ robot }: { robot: Robot }) {
             <span
               key={f}
               className={`grid h-6 w-6 place-items-center rounded-full border text-[11px] ${
-                fedCount > 0 ? "border-good/50 bg-good/10" : "border-border bg-bg-panel-2"
+                pantry[f] ? "border-good/50 bg-good/10" : "border-border bg-bg-panel-2"
               }`}
             >
               🍽️

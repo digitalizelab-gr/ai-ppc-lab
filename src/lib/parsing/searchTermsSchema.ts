@@ -14,7 +14,11 @@ const COLUMN_ALIASES = {
   clicks: ["clicks"],
   cost: ["cost", "spend", "cost usd", "cost (usd)", "cost usd"],
   conversions: ["conversions", "conv.", "conversions.", "conv"],
+  currencyCode: ["currency code", "currency"],
 } as const;
+
+/** Google Ads' UI export appends these below the real rows — never real search terms. */
+const AGGREGATE_ROW_PREFIX = /^total:/i;
 
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/\s+/g, " ");
@@ -39,6 +43,7 @@ function parseNumber(v: unknown): number {
 export interface ValidatedSearchTerms {
   rows: SearchTermRow[];
   validation: DatasetValidation;
+  currencyCode?: string;
 }
 
 export function validateAndNormalizeSearchTerms(
@@ -56,6 +61,7 @@ export function validateAndNormalizeSearchTerms(
   const costCol = findColumn(columns, COLUMN_ALIASES.cost);
   const impressionsCol = findColumn(columns, COLUMN_ALIASES.impressions);
   const conversionsCol = findColumn(columns, COLUMN_ALIASES.conversions);
+  const currencyCol = findColumn(columns, COLUMN_ALIASES.currencyCode);
 
   if (!searchTermCol) {
     issues.push(
@@ -72,12 +78,22 @@ export function validateAndNormalizeSearchTerms(
 
   const rows: SearchTermRow[] = [];
   let blankTermRows = 0;
+  let aggregateRowsSkipped = 0;
+  let currencyCode: string | undefined;
 
   for (const raw of rawRows) {
     const term = (raw[searchTermCol] ?? "").toString().trim();
     if (!term) {
       blankTermRows++;
       continue;
+    }
+    if (AGGREGATE_ROW_PREFIX.test(term)) {
+      aggregateRowsSkipped++;
+      continue;
+    }
+    if (currencyCol && !currencyCode) {
+      const c = (raw[currencyCol] ?? "").toString().trim();
+      if (c) currencyCode = c;
     }
     rows.push({
       searchTerm: term,
@@ -91,6 +107,9 @@ export function validateAndNormalizeSearchTerms(
   if (blankTermRows > 0) {
     issues.push(`Skipped ${blankTermRows} row(s) with a blank search term.`);
   }
+  if (aggregateRowsSkipped > 0) {
+    issues.push(`Skipped ${aggregateRowsSkipped} Google Ads summary "Total: ..." row(s).`);
+  }
   if (rows.length === 0) {
     issues.push("No usable rows remained after validation.");
     return { rows: [], validation: { state: "invalid", issues } };
@@ -99,5 +118,6 @@ export function validateAndNormalizeSearchTerms(
   return {
     rows,
     validation: { state: issues.length > 0 ? "warning" : "valid", issues },
+    currencyCode,
   };
 }

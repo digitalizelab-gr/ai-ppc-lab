@@ -26,8 +26,8 @@
   --color-tape: var(--tape);
   --color-danger: var(--danger);
   --color-good: var(--good);
-  --font-display: var(--font-space-grotesk);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-display: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
 }
 
 html {
@@ -37,14 +37,14 @@ html {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-display);
   background-image:
     radial-gradient(circle at 15% 0%, rgba(124, 255, 107, 0.05), transparent 40%),
     radial-gradient(circle at 85% 10%, rgba(255, 95, 179, 0.05), transparent 40%);
 }
 
 .font-mono {
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 
 /* Garage warning-tape stripe, used sparingly */
