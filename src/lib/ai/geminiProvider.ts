@@ -10,7 +10,7 @@ const MODEL_IDS: Record<ModelKey, string> = {
   pro: process.env.GEMINI_MODEL_PRO || "gemini-3.1-pro-preview",
 };
 
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 55_000;
 
 function classifyError(err: unknown): AIProviderError {
   if (err instanceof AIProviderError) return err;

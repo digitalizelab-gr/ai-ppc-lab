@@ -4,6 +4,8 @@ import { getAgent } from "@/lib/agents/registry";
 import { generateAnalysis, AIProviderError } from "@/lib/ai";
 import { DatasetId } from "@/lib/types";
 
+export const maxDuration = 60;
+
 function statusForErrorCode(code: string): number {
   switch (code) {
     case "missing_key":

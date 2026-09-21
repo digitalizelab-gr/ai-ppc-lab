@@ -10,6 +10,8 @@ import {
 } from "@/lib/agents/searchTermsQuickTest";
 import { generateStructuredOutput, AIProviderError, ModelKey } from "@/lib/ai";
 
+export const maxDuration = 60;
+
 function statusForErrorCode(code: string): number {
   switch (code) {
     case "missing_key":
