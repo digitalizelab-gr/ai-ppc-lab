@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getDataset, StoredDataset } from "@/lib/server/datasetStore";
 import { getAgent } from "@/lib/agents/registry";
 import { generateAnalysis, AIProviderError } from "@/lib/ai";
-import { DatasetId } from "@/lib/types";
+import { DatasetId, DatasetPayload } from "@/lib/types";
 
 export const maxDuration = 60;
 
@@ -21,6 +20,18 @@ function statusForErrorCode(code: string): number {
   }
 }
 
+function isValidDatasetPayload(v: unknown): v is DatasetPayload {
+  if (!v || typeof v !== "object") return false;
+  const d = v as Partial<DatasetPayload>;
+  return (
+    typeof d.datasetType === "string" &&
+    Array.isArray(d.columns) &&
+    Array.isArray(d.rows) &&
+    !!d.validation &&
+    typeof d.validation.state === "string"
+  );
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ agentId: string }> }
@@ -34,39 +45,35 @@ export async function POST(
     );
   }
 
-  let body: { datasetIds?: Record<string, string> };
+  let body: { datasets?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
   }
-  if (!body.datasetIds) {
-    return NextResponse.json({ message: "Missing datasetIds." }, { status: 400 });
+  if (!body.datasets) {
+    return NextResponse.json({ message: "Missing datasets." }, { status: 400 });
   }
 
-  const datasets: Partial<Record<DatasetId, StoredDataset>> = {};
+  const datasets: Partial<Record<DatasetId, DatasetPayload>> = {};
   for (const type of agent.requiredDatasetTypes) {
-    const id = body.datasetIds[type];
-    if (!id) {
-      return NextResponse.json({ message: `Missing dataset for "${type}".` }, { status: 400 });
-    }
-    const dataset = getDataset(id);
-    if (!dataset) {
+    const candidate = body.datasets[type];
+    if (!isValidDatasetPayload(candidate)) {
       return NextResponse.json(
-        { message: `The "${type}" dataset is no longer available — upload it again.` },
-        { status: 404 }
+        { message: `Missing or malformed dataset for "${type}" — re-upload it.` },
+        { status: 400 }
       );
     }
-    if (dataset.datasetType !== type) {
+    if (candidate.datasetType !== type) {
       return NextResponse.json({ message: `Wrong dataset type supplied for "${type}".` }, { status: 400 });
     }
-    if (dataset.validation.state === "invalid") {
+    if (candidate.validation.state === "invalid") {
       return NextResponse.json(
         { message: `The "${type}" dataset failed validation — re-upload a valid file.` },
         { status: 400 }
       );
     }
-    datasets[type] = dataset;
+    datasets[type] = candidate;
   }
 
   const evidence = agent.preprocess(datasets);

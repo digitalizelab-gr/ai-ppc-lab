@@ -20,7 +20,7 @@ import {
   RobotState,
 } from "./types";
 
-const PANTRY_KEY = "ppclab.pantry.v2";
+const PANTRY_KEY = "ppclab.pantry.v3";
 const RUNS_KEY = "ppclab.runs.v2";
 const FEEDBACK_KEY = "ppclab.feedback.v1";
 
@@ -119,12 +119,12 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
           feddAt: Date.now(),
           rows: data.rowCount,
           source: "upload",
-          serverDatasetId: data.id,
           filename: data.filename,
           sourceFiles: data.sourceFiles,
           currencyCode: data.currencyCode,
           columns: data.columns,
           validation: data.validation,
+          data: data.rows,
         },
       };
       writeJSON(PANTRY_KEY, next);
@@ -164,20 +164,28 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
       if (LIVE_AGENT_IDS.has(robotId)) {
         (async () => {
           try {
-            const datasetIds: Record<string, string> = {};
+            const datasets: Record<string, unknown> = {};
             for (const foodType of robot.food) {
               const entry = pantry[foodType];
-              if (entry?.source === "upload" && entry.serverDatasetId) {
-                datasetIds[foodType] = entry.serverDatasetId;
+              if (entry?.source === "upload" && entry.data) {
+                datasets[foodType] = {
+                  datasetType: entry.datasetId,
+                  filename: entry.filename,
+                  sourceFiles: entry.sourceFiles,
+                  currencyCode: entry.currencyCode,
+                  columns: entry.columns ?? [],
+                  rows: entry.data,
+                  validation: entry.validation ?? { state: "valid", issues: [] },
+                };
               }
             }
-            if (Object.keys(datasetIds).length === 0) {
+            if (Object.keys(datasets).length === 0) {
               throw new Error("No uploaded dataset found — feed this robot real files first.");
             }
             const res = await fetch(`/api/analyze/${robotId}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ datasetIds }),
+              body: JSON.stringify({ datasets }),
             });
             const data = await res.json();
             if (!res.ok) {

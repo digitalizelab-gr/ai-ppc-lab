@@ -1,5 +1,4 @@
-import { DatasetId } from "@/lib/types";
-import { StoredDataset } from "@/lib/server/datasetStore";
+import { DatasetId, DatasetPayload } from "@/lib/types";
 import {
   preprocessSearchTerms,
   SEARCH_TERM_GOBLIN_SYSTEM_INSTRUCTION,
@@ -23,7 +22,7 @@ export interface AgentDefinition {
   requiredDatasetTypes: DatasetId[];
   systemInstruction: string;
   buildPrompt: (evidence: unknown) => string;
-  preprocess: (datasets: Partial<Record<DatasetId, StoredDataset>>) => unknown;
+  preprocess: (datasets: Partial<Record<DatasetId, DatasetPayload>>) => unknown;
 }
 
 export const AGENTS: Record<string, AgentDefinition> = {

@@ -1,8 +1,8 @@
-import { StoredDataset } from "@/lib/server/datasetStore";
+import { DatasetPayload } from "@/lib/types";
 import { SearchTermRow } from "@/lib/parsing/searchTermsSchema";
 import { buildSearchTermEvidence, SearchTermEvidence } from "./searchTermsEvidence";
 
-export function preprocessSearchTerms(dataset: StoredDataset): SearchTermEvidence {
+export function preprocessSearchTerms(dataset: DatasetPayload): SearchTermEvidence {
   return buildSearchTermEvidence(dataset.rows as unknown as SearchTermRow[], dataset.currencyCode);
 }
 

@@ -1,4 +1,4 @@
-import { StoredDataset } from "@/lib/server/datasetStore";
+import { DatasetPayload } from "@/lib/types";
 import { SearchTermRow } from "@/lib/parsing/searchTermsSchema";
 import { tokenize, round2 } from "./textTokenize";
 
@@ -117,8 +117,8 @@ function sumTotals(rows: SearchTermRow[]) {
 }
 
 export function buildKeywordGapEvidence(
-  accountDataset: StoredDataset,
-  peerDataset: StoredDataset
+  accountDataset: DatasetPayload,
+  peerDataset: DatasetPayload
 ): KeywordGapEvidence {
   const accountRows = accountDataset.rows as unknown as SearchTermRow[];
   const peerRows = peerDataset.rows as unknown as SearchTermRow[];

@@ -63,18 +63,38 @@ export interface DatasetValidation {
   issues: string[];
 }
 
+/**
+ * A fully parsed, validated dataset — the payload that travels client → server
+ * on upload, gets cached in the Pantry, and travels client → server again on
+ * every analysis run. There is deliberately no server-side dataset store: a
+ * serverless deployment can route two requests to two different instances
+ * with no shared memory, so "upload now, reference by id later" doesn't hold
+ * up in production. Sending the (already-validated, already-small) data itself
+ * on each request sidesteps that entirely.
+ */
+export interface DatasetPayload {
+  datasetType: DatasetId;
+  filename: string;
+  sourceFiles?: string[];
+  currencyCode?: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  validation: DatasetValidation;
+}
+
 export interface PantryEntry {
   datasetId: DatasetId;
   feddAt: number;
   rows: number;
-  /** "mock" = the old one-click fake feed. "upload" = a real parsed file sitting in the server-side dataset store. */
+  /** "mock" = the old one-click fake feed. "upload" = a real parsed file, cached here for re-sending on each analysis run. */
   source: "mock" | "upload";
-  serverDatasetId?: string;
   filename?: string;
   sourceFiles?: string[];
   currencyCode?: string;
   columns?: string[];
   validation?: DatasetValidation;
+  /** Present only when source === "upload" — the actual parsed rows, resent to /api/analyze. */
+  data?: Record<string, unknown>[];
 }
 
 export interface RobotRun {

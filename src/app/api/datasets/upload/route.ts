@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseUploadedFile } from "@/lib/parsing/parseFile";
 import { validateAndNormalizeSearchTerms } from "@/lib/parsing/searchTermsSchema";
-import { registerDataset } from "@/lib/server/datasetStore";
 import { DATASET_MAP } from "@/lib/datasets";
 import { DatasetId } from "@/lib/types";
 
@@ -90,26 +89,18 @@ export async function POST(req: Request) {
   }
 
   const validation = { state: (issues.length > 0 ? "warning" : "valid") as "warning" | "valid", issues };
+  const filename = filenames.length === 1 ? filenames[0] : `${filenames.length} files`;
 
-  const dataset = registerDataset({
-    datasetType: datasetType as DatasetId,
-    filename: filenames.length === 1 ? filenames[0] : `${filenames.length} files`,
+  // No server-side dataset store: the validated rows go straight back to the
+  // client, which resends them on the next request. See DatasetPayload for why.
+  return NextResponse.json({
+    filename,
     sourceFiles: filenames,
     currencyCode,
+    datasetType: datasetType as DatasetId,
+    rowCount: combinedRows.length,
     columns: combinedColumns,
     rows: combinedRows,
     validation,
-  });
-
-  return NextResponse.json({
-    id: dataset.id,
-    filename: dataset.filename,
-    sourceFiles: dataset.sourceFiles,
-    currencyCode: dataset.currencyCode,
-    datasetType: dataset.datasetType,
-    uploadedAt: dataset.uploadedAt,
-    rowCount: dataset.rowCount,
-    columns: dataset.columns,
-    validation: dataset.validation,
   });
 }
