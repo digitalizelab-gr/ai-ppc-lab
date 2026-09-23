@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseUploadedFile } from "@/lib/parsing/parseFile";
 import { validateAndNormalizeSearchTerms } from "@/lib/parsing/searchTermsSchema";
+import { isAggregateRow } from "@/lib/parsing/googleAdsExport";
 import { DATASET_MAP } from "@/lib/datasets";
 import { DatasetId } from "@/lib/types";
 
@@ -71,11 +72,19 @@ export async function POST(req: Request) {
       }
       filenames.push(file.name);
     } else {
-      if (parsed.rows.length === 0) {
+      const firstCol = parsed.columns[0];
+      const dataRows = firstCol
+        ? parsed.rows.filter((r) => !isAggregateRow(r[firstCol]))
+        : parsed.rows;
+      const skipped = parsed.rows.length - dataRows.length;
+      if (dataRows.length === 0) {
         issues.push(`"${file.name}" has no data rows — skipped.`);
         continue;
       }
-      combinedRows.push(...parsed.rows);
+      if (skipped > 0) {
+        issues.push(`"${file.name}": skipped ${skipped} Google Ads summary "Total: ..." row(s).`);
+      }
+      combinedRows.push(...dataRows);
       combinedColumns = parsed.columns;
       filenames.push(file.name);
     }

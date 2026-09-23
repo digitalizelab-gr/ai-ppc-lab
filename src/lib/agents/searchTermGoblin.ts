@@ -1,4 +1,4 @@
-import { DatasetPayload } from "@/lib/types";
+import { DatasetPayload, KeywordAction } from "@/lib/types";
 import { SearchTermRow } from "@/lib/parsing/searchTermsSchema";
 import { buildSearchTermEvidence, SearchTermEvidence } from "./searchTermsEvidence";
 
@@ -17,6 +17,10 @@ Rules:
 - Write "headline" as one sharp sentence stating the single most important finding, ideally with a number in it.
 - Do not use humor, slang, or a "character" voice — write like a sharp, direct paid-search analyst.
 - If the evidence is too thin to say anything meaningful, say so honestly instead of manufacturing a finding.
+- Keep "actions" as a short, high-level punch list (the headline moves, not the line items) — the detailed, copy-paste-ready term lists belong in "negativeKeywords" and "keywordsToAdd" instead, so do not duplicate individual terms in "actions".
+- "negativeKeywords": one entry per term worth blocking, sourced only from evidence.topWastefulTerms, using the term's exact spelling from that list. matchType "exact" for a specific wasteful query, "phrase" when the reason is really about a token/pattern within it. "reason" is one short clause with the dollar figure, e.g. "412.30 wasted, 0 conversions across 340 clicks". Nothing else — no campaign or ad group field exists on this object, do not add one.
+- "keywordsToAdd": one entry per term worth targeting directly, sourced only from evidence.topConvertingTerms (proven demand) or a clearly strong sub-theme in evidence.topThemesInWastedSpend that deserves its own converting-intent variant, using its exact spelling. "reason" states the conversion signal, e.g. "already converting at 6.1% organically via a related term".
+- Omit "negativeKeywords" or "keywordsToAdd" entirely (do not return an empty array) if the evidence doesn't support any entries for that list.
 - Return ONLY the structured JSON described by the response schema. No markdown, no commentary outside the JSON.`;
 
 export function buildSearchTermGoblinPrompt(evidence: SearchTermEvidence): string {
@@ -26,7 +30,44 @@ ${JSON.stringify(evidence, null, 2)}
 
 Analyze this evidence and produce:
 1. The most important insights about wasted spend, negative keyword opportunities, useful demand/intent patterns worth expanding into, and any unexpected themes in "topThemesInWastedSpend".
-2. Specific, prioritized actions (e.g. exact negative keywords to add, ad groups to build, terms to investigate further).
-3. A realistic expected impact statement grounded in the totals given — do not overstate it.
-4. A confidence rating per the rules in your system instructions.`;
+2. A short, high-level list of prioritized actions in "actions".
+3. The detailed, copy-paste-ready term lists in "negativeKeywords" and "keywordsToAdd" per your system instructions.
+4. A realistic expected impact statement grounded in the totals given — do not overstate it.
+5. A confidence rating per the rules in your system instructions.`;
+}
+
+interface RawKeywordAction {
+  term: string;
+  matchType: "exact" | "phrase";
+  reason: string;
+}
+
+function findLocation(evidence: SearchTermEvidence, term: string): { campaign?: string; adGroup?: string } {
+  const norm = term.trim().toLowerCase();
+  const hit =
+    evidence.topWastefulTerms.find((t) => t.term.trim().toLowerCase() === norm) ??
+    evidence.topConvertingTerms.find((t) => t.term.trim().toLowerCase() === norm);
+  if (!hit) return {};
+  const location: { campaign?: string; adGroup?: string } = {};
+  if (hit.campaign) location.campaign = hit.campaign;
+  if (hit.adGroup) location.adGroup = hit.adGroup;
+  return location;
+}
+
+/**
+ * Runs after Gemini's response is validated. campaign/adGroup are attached
+ * here by a deterministic lookup against the same evidence Gemini saw —
+ * see the comment on KeywordActionSchema for why this isn't Gemini's job.
+ */
+export function enrichSearchTermGoblinResult<
+  T extends { negativeKeywords?: RawKeywordAction[]; keywordsToAdd?: RawKeywordAction[] }
+>(result: T, evidence: SearchTermEvidence): T & { negativeKeywords?: KeywordAction[]; keywordsToAdd?: KeywordAction[] } {
+  const enrich = (items?: RawKeywordAction[]): KeywordAction[] | undefined =>
+    items?.map((item) => ({ ...item, ...findLocation(evidence, item.term) }));
+
+  return {
+    ...result,
+    negativeKeywords: enrich(result.negativeKeywords),
+    keywordsToAdd: enrich(result.keywordsToAdd),
+  };
 }

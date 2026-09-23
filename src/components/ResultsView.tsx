@@ -1,5 +1,6 @@
 import { AnalysisResult, Confidence } from "@/lib/types";
 import FeedbackButtons from "./FeedbackButtons";
+import KeywordActionList from "./KeywordActionList";
 
 const CONFIDENCE_META: Record<Confidence, { color: string; bars: number }> = {
   HIGH: { color: "var(--good)", bars: 3 },
@@ -99,6 +100,28 @@ export default function ResultsView({
         </h4>
         <p className="text-sm leading-relaxed text-text">{result.expectedImpact}</p>
       </div>
+
+      {((result.negativeKeywords && result.negativeKeywords.length > 0) ||
+        (result.keywordsToAdd && result.keywordsToAdd.length > 0)) && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {result.negativeKeywords && result.negativeKeywords.length > 0 && (
+            <KeywordActionList
+              title="Negative keywords to add"
+              icon="🚫"
+              items={result.negativeKeywords}
+              accentColor="var(--danger)"
+            />
+          )}
+          {result.keywordsToAdd && result.keywordsToAdd.length > 0 && (
+            <KeywordActionList
+              title="Keywords to add"
+              icon="✅"
+              items={result.keywordsToAdd}
+              accentColor="var(--good)"
+            />
+          )}
+        </div>
+      )}
 
       {result.evidence && result.evidence.length > 0 && (
         <details open className="group mt-4 rounded-lg border border-border-soft px-4 py-3">

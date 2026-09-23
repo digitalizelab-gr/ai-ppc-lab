@@ -83,7 +83,8 @@ export async function POST(
       systemInstruction: agent.systemInstruction,
       prompt: agent.buildPrompt(evidence),
     });
-    return NextResponse.json({ result: { id: `live-${Date.now()}`, ...result } });
+    const enriched = agent.enrichResult ? agent.enrichResult(result, evidence) : result;
+    return NextResponse.json({ result: { id: `live-${Date.now()}`, ...(enriched as object) } });
   } catch (err) {
     if (err instanceof AIProviderError) {
       return NextResponse.json(

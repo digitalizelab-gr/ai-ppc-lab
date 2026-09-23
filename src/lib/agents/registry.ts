@@ -1,8 +1,10 @@
 import { DatasetId, DatasetPayload } from "@/lib/types";
+import { AnalysisOutput } from "@/lib/ai";
 import {
   preprocessSearchTerms,
   SEARCH_TERM_GOBLIN_SYSTEM_INSTRUCTION,
   buildSearchTermGoblinPrompt,
+  enrichSearchTermGoblinResult,
 } from "./searchTermGoblin";
 import {
   buildKeywordGapEvidence,
@@ -23,6 +25,8 @@ export interface AgentDefinition {
   systemInstruction: string;
   buildPrompt: (evidence: unknown) => string;
   preprocess: (datasets: Partial<Record<DatasetId, DatasetPayload>>) => unknown;
+  /** Deterministic post-processing on Gemini's validated output (e.g. attaching campaign/adGroup by evidence lookup). Defaults to a no-op. */
+  enrichResult?: (result: AnalysisOutput, evidence: unknown) => unknown;
 }
 
 export const AGENTS: Record<string, AgentDefinition> = {
@@ -32,6 +36,8 @@ export const AGENTS: Record<string, AgentDefinition> = {
     systemInstruction: SEARCH_TERM_GOBLIN_SYSTEM_INSTRUCTION,
     buildPrompt: (evidence) => buildSearchTermGoblinPrompt(evidence as Parameters<typeof buildSearchTermGoblinPrompt>[0]),
     preprocess: (datasets) => preprocessSearchTerms(datasets["search-terms"]!),
+    enrichResult: (result, evidence) =>
+      enrichSearchTermGoblinResult(result, evidence as Parameters<typeof buildSearchTermGoblinPrompt>[0]),
   },
   bloodhound: {
     id: "bloodhound",

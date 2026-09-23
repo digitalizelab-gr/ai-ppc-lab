@@ -7,8 +7,8 @@ export interface SearchTermEvidence {
   totals: { impressions: number; clicks: number; cost: number; conversions: number };
   accountAverages: { ctrPct: number | null; conversionRatePct: number | null; cpa: number | null };
   zeroConversion: { spend: number; shareOfCostPct: number | null; termCount: number };
-  topWastefulTerms: { term: string; cost: number; clicks: number; impressions: number }[];
-  topConvertingTerms: { term: string; conversions: number; cost: number; conversionRatePct: number | null }[];
+  topWastefulTerms: { term: string; cost: number; clicks: number; impressions: number; campaign?: string; adGroup?: string }[];
+  topConvertingTerms: { term: string; conversions: number; cost: number; conversionRatePct: number | null; campaign?: string; adGroup?: string }[];
   topThemesInWastedSpend: { token: string; cost: number; termOccurrences: number }[];
 }
 
@@ -38,7 +38,14 @@ export function buildSearchTermEvidence(
   const topWastefulTerms = [...zeroConvRows]
     .sort((a, b) => b.cost - a.cost)
     .slice(0, 12)
-    .map((r) => ({ term: r.searchTerm, cost: round2(r.cost), clicks: r.clicks, impressions: r.impressions }));
+    .map((r) => ({
+      term: r.searchTerm,
+      cost: round2(r.cost),
+      clicks: r.clicks,
+      impressions: r.impressions,
+      ...(r.campaign ? { campaign: r.campaign } : {}),
+      ...(r.adGroup ? { adGroup: r.adGroup } : {}),
+    }));
 
   const convertingRows = rows.filter((r) => r.conversions > 0);
   const topConvertingTerms = [...convertingRows]
@@ -49,6 +56,8 @@ export function buildSearchTermEvidence(
       conversions: round2(r.conversions),
       cost: round2(r.cost),
       conversionRatePct: r.clicks > 0 ? round2((r.conversions / r.clicks) * 100) : null,
+      ...(r.campaign ? { campaign: r.campaign } : {}),
+      ...(r.adGroup ? { adGroup: r.adGroup } : {}),
     }));
 
   const tokenCost = new Map<string, { cost: number; termOccurrences: number }>();

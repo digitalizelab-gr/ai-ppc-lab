@@ -1,4 +1,5 @@
 import { DatasetValidation } from "@/lib/types";
+import { isAggregateRow } from "./googleAdsExport";
 
 export interface SearchTermRow {
   searchTerm: string;
@@ -6,6 +7,9 @@ export interface SearchTermRow {
   clicks: number;
   cost: number;
   conversions: number;
+  /** Omitted when the source file has no Campaign/Ad group column. */
+  campaign?: string;
+  adGroup?: string;
 }
 
 const COLUMN_ALIASES = {
@@ -15,10 +19,9 @@ const COLUMN_ALIASES = {
   cost: ["cost", "spend", "cost usd", "cost (usd)", "cost usd"],
   conversions: ["conversions", "conv.", "conversions.", "conv"],
   currencyCode: ["currency code", "currency"],
+  campaign: ["campaign"],
+  adGroup: ["ad group", "adgroup", "ad group name"],
 } as const;
-
-/** Google Ads' UI export appends these below the real rows — never real search terms. */
-const AGGREGATE_ROW_PREFIX = /^total:/i;
 
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/\s+/g, " ");
@@ -62,6 +65,8 @@ export function validateAndNormalizeSearchTerms(
   const impressionsCol = findColumn(columns, COLUMN_ALIASES.impressions);
   const conversionsCol = findColumn(columns, COLUMN_ALIASES.conversions);
   const currencyCol = findColumn(columns, COLUMN_ALIASES.currencyCode);
+  const campaignCol = findColumn(columns, COLUMN_ALIASES.campaign);
+  const adGroupCol = findColumn(columns, COLUMN_ALIASES.adGroup);
 
   if (!searchTermCol) {
     issues.push(
@@ -75,6 +80,9 @@ export function validateAndNormalizeSearchTerms(
   }
   if (!impressionsCol) issues.push('No "Impressions" column found — CTR will be skipped.');
   if (!conversionsCol) issues.push('No "Conversions" column found — treating every row as 0 conversions.');
+  if (!campaignCol && !adGroupCol) {
+    issues.push('No "Campaign"/"Ad group" columns found — recommendations won\'t say where to apply them.');
+  }
 
   const rows: SearchTermRow[] = [];
   let blankTermRows = 0;
@@ -87,7 +95,7 @@ export function validateAndNormalizeSearchTerms(
       blankTermRows++;
       continue;
     }
-    if (AGGREGATE_ROW_PREFIX.test(term)) {
+    if (isAggregateRow(term)) {
       aggregateRowsSkipped++;
       continue;
     }
@@ -95,12 +103,16 @@ export function validateAndNormalizeSearchTerms(
       const c = (raw[currencyCol] ?? "").toString().trim();
       if (c) currencyCode = c;
     }
+    const campaign = campaignCol ? (raw[campaignCol] ?? "").toString().trim() : "";
+    const adGroup = adGroupCol ? (raw[adGroupCol] ?? "").toString().trim() : "";
     rows.push({
       searchTerm: term,
       impressions: impressionsCol ? parseNumber(raw[impressionsCol]) : 0,
       clicks: clicksCol ? parseNumber(raw[clicksCol]) : 0,
       cost: costCol ? parseNumber(raw[costCol]) : 0,
       conversions: conversionsCol ? parseNumber(raw[conversionsCol]) : 0,
+      ...(campaign ? { campaign } : {}),
+      ...(adGroup ? { adGroup } : {}),
     });
   }
 

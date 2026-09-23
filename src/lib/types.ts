@@ -29,6 +29,15 @@ export type RobotState =
 
 export type Confidence = "HIGH" | "MEDIUM" | "LOW";
 
+export interface KeywordAction {
+  term: string;
+  matchType: "exact" | "phrase";
+  /** Omitted when the source data had no Campaign/Ad group column. */
+  campaign?: string;
+  adGroup?: string;
+  reason: string;
+}
+
 export interface AnalysisResult {
   id: string;
   headline: string;
@@ -38,6 +47,10 @@ export interface AnalysisResult {
   confidence: Confidence;
   /** Short citations grounding each claim in real evidence. Only present for live (AI-backed) results. */
   evidence?: string[];
+  /** Copy-paste-ready negative keyword candidates. Optional — only agents dealing with waste populate this. */
+  negativeKeywords?: KeywordAction[];
+  /** Copy-paste-ready new-keyword candidates. Optional — only agents surfacing expansion opportunities populate this. */
+  keywordsToAdd?: KeywordAction[];
 }
 
 export interface Robot {
